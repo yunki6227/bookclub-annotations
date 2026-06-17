@@ -1,5 +1,10 @@
 "use client";
 
+import { useCallback, useState } from "react";
+
+import { AnnotationCanvasOverlay } from "@/features/annotations/components/AnnotationCanvasOverlay";
+import type { AnnotationStroke } from "@/features/annotations/types/annotation";
+
 import { usePdfPageRenderer } from "../hooks/usePdfPageRenderer";
 
 type SamplePdfReaderProps = {
@@ -9,6 +14,9 @@ type SamplePdfReaderProps = {
 export function SamplePdfReader({
   pdfUrl = "/sample.pdf",
 }: SamplePdfReaderProps) {
+  const [strokesByPage, setStrokesByPage] = useState<
+    Record<number, AnnotationStroke[]>
+  >({});
   const {
     canvasRef,
     canGoToNextPage,
@@ -21,13 +29,36 @@ export function SamplePdfReader({
     pageSize,
     status,
   } = usePdfPageRenderer({ fileUrl: pdfUrl });
+  const currentPageStrokes = strokesByPage[pageNumber] ?? [];
+
+  const handleStrokeComplete = useCallback(
+    (stroke: AnnotationStroke) => {
+      setStrokesByPage((currentStrokesByPage) => ({
+        ...currentStrokesByPage,
+        [pageNumber]: [
+          ...(currentStrokesByPage[pageNumber] ?? []),
+          stroke,
+        ],
+      }));
+    },
+    [pageNumber],
+  );
+
+  const clearCurrentPageStrokes = useCallback(() => {
+    setStrokesByPage((currentStrokesByPage) => {
+      const remainingStrokesByPage = { ...currentStrokesByPage };
+      delete remainingStrokesByPage[pageNumber];
+
+      return remainingStrokesByPage;
+    });
+  }, [pageNumber]);
 
   return (
     <section className="mx-auto flex w-full max-w-5xl flex-col gap-5">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="text-sm font-medium uppercase tracking-wide text-slate-500">
-            Phase 1
+            Phase 2
           </p>
           <h1 className="text-3xl font-semibold text-slate-950 sm:text-4xl">
             BookClub Annotations MVP
@@ -58,6 +89,14 @@ export function SamplePdfReader({
           >
             Next
           </button>
+          <button
+            type="button"
+            className="rounded-md border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-40"
+            disabled={currentPageStrokes.length === 0}
+            onClick={clearCurrentPageStrokes}
+          >
+            Clear page
+          </button>
         </div>
       </div>
 
@@ -73,11 +112,34 @@ export function SamplePdfReader({
               ) : null}
             </div>
           ) : (
-            <canvas
-              ref={canvasRef}
-              aria-label="Rendered sample PDF page"
-              className="h-auto max-w-full bg-white shadow"
-            />
+            <div
+              className={pageSize ? "relative bg-white shadow" : "bg-white"}
+              style={
+                pageSize
+                  ? {
+                      height: `${pageSize.height}px`,
+                      width: `${pageSize.width}px`,
+                    }
+                  : undefined
+              }
+            >
+              <canvas
+                ref={canvasRef}
+                aria-label="Rendered sample PDF page"
+                className={
+                  pageSize
+                    ? "absolute inset-0 bg-white"
+                    : "h-auto bg-white shadow"
+                }
+              />
+              {status === "ready" && pageSize ? (
+                <AnnotationCanvasOverlay
+                  onStrokeComplete={handleStrokeComplete}
+                  pageSize={pageSize}
+                  strokes={currentPageStrokes}
+                />
+              ) : null}
+            </div>
           )}
         </div>
 
@@ -90,6 +152,9 @@ export function SamplePdfReader({
           {pageSize ? (
             <span>
               {Math.round(pageSize.width)} x {Math.round(pageSize.height)} px
+              {" · "}
+              {currentPageStrokes.length} pen{" "}
+              {currentPageStrokes.length === 1 ? "stroke" : "strokes"}
             </span>
           ) : null}
         </div>

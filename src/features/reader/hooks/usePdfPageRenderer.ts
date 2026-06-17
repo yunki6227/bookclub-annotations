@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import type { PDFDocumentProxy } from "pdfjs-dist";
+import type { PDFDocumentProxy } from "pdfjs-dist/legacy/build/pdf.mjs";
 
 import {
   loadPdfDocument,
