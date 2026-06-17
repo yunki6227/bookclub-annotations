@@ -16,3 +16,12 @@ export type AnnotationStroke = {
   points: StrokePoint[];
   createdAt: string;
 };
+
+export type AnnotationStrokesByPage = Record<number, AnnotationStroke[]>;
+
+export type LocalAnnotationStore = {
+  version: 1;
+  pdfId: string;
+  pages: AnnotationStrokesByPage;
+  updatedAt: string;
+};

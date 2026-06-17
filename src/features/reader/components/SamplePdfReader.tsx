@@ -1,22 +1,25 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback } from "react";
 
 import { AnnotationCanvasOverlay } from "@/features/annotations/components/AnnotationCanvasOverlay";
 import type { AnnotationStroke } from "@/features/annotations/types/annotation";
+import { useLocalAnnotationPersistence } from "@/features/annotations/hooks/useLocalAnnotationPersistence";
 
 import { usePdfPageRenderer } from "../hooks/usePdfPageRenderer";
 
 type SamplePdfReaderProps = {
+  pdfId?: string;
   pdfUrl?: string;
 };
 
 export function SamplePdfReader({
+  pdfId,
   pdfUrl = "/sample.pdf",
 }: SamplePdfReaderProps) {
-  const [strokesByPage, setStrokesByPage] = useState<
-    Record<number, AnnotationStroke[]>
-  >({});
+  const resolvedPdfId = pdfId ?? pdfUrl;
+  const { isHydrated, setStrokesByPage, strokesByPage } =
+    useLocalAnnotationPersistence(resolvedPdfId);
   const {
     canvasRef,
     canGoToNextPage,
@@ -41,7 +44,7 @@ export function SamplePdfReader({
         ],
       }));
     },
-    [pageNumber],
+    [pageNumber, setStrokesByPage],
   );
 
   const clearCurrentPageStrokes = useCallback(() => {
@@ -51,14 +54,14 @@ export function SamplePdfReader({
 
       return remainingStrokesByPage;
     });
-  }, [pageNumber]);
+  }, [pageNumber, setStrokesByPage]);
 
   return (
     <section className="mx-auto flex w-full max-w-5xl flex-col gap-5">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="text-sm font-medium uppercase tracking-wide text-slate-500">
-            Phase 2
+            Phase 3
           </p>
           <h1 className="text-3xl font-semibold text-slate-950 sm:text-4xl">
             BookClub Annotations MVP
@@ -147,7 +150,8 @@ export function SamplePdfReader({
           <span>
             {status === "loading"
               ? "Loading PDF..."
-              : "Sample PDF rendered locally."}
+              : "Sample PDF rendered locally."}{" "}
+            {isHydrated ? "Annotations saved locally." : ""}
           </span>
           {pageSize ? (
             <span>
