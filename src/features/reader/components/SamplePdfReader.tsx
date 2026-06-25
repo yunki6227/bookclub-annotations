@@ -1,10 +1,13 @@
 "use client";
 
-import { useCallback } from "react";
+import { useCallback, useMemo, useState } from "react";
 
 import { AnnotationCanvasOverlay } from "@/features/annotations/components/AnnotationCanvasOverlay";
+import { FriendLayerPicker } from "@/features/annotations/components/FriendLayerPicker";
+import { ReadOnlyAnnotationLayer } from "@/features/annotations/components/ReadOnlyAnnotationLayer";
 import type { AnnotationStroke } from "@/features/annotations/types/annotation";
 import { useLocalAnnotationPersistence } from "@/features/annotations/hooks/useLocalAnnotationPersistence";
+import { getMockFriendLayersForPage } from "@/features/annotations/mock/mockFriendAnnotations";
 
 import { usePdfPageRenderer } from "../hooks/usePdfPageRenderer";
 
@@ -18,6 +21,7 @@ export function SamplePdfReader({
   pdfUrl = "/sample.pdf",
 }: SamplePdfReaderProps) {
   const resolvedPdfId = pdfId ?? pdfUrl;
+  const [selectedFriendId, setSelectedFriendId] = useState<string | null>(null);
   const { isHydrated, setStrokesByPage, strokesByPage } =
     useLocalAnnotationPersistence(resolvedPdfId);
   const {
@@ -33,6 +37,14 @@ export function SamplePdfReader({
     status,
   } = usePdfPageRenderer({ fileUrl: pdfUrl });
   const currentPageStrokes = strokesByPage[pageNumber] ?? [];
+  const friendLayersForPage = useMemo(
+    () => getMockFriendLayersForPage(pageNumber),
+    [pageNumber],
+  );
+  const selectedFriendLayer =
+    friendLayersForPage.find(
+      (friendLayer) => friendLayer.friendId === selectedFriendId,
+    ) ?? null;
 
   const handleStrokeComplete = useCallback(
     (stroke: AnnotationStroke) => {
@@ -56,12 +68,16 @@ export function SamplePdfReader({
     });
   }, [pageNumber, setStrokesByPage]);
 
+  const hideFriendLayer = useCallback(() => {
+    setSelectedFriendId(null);
+  }, []);
+
   return (
     <section className="mx-auto flex w-full max-w-5xl flex-col gap-5">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <p className="text-sm font-medium uppercase tracking-wide text-slate-500">
-            Phase 3
+            Phase 4
           </p>
           <h1 className="text-3xl font-semibold text-slate-950 sm:text-4xl">
             BookClub Annotations MVP
@@ -104,6 +120,15 @@ export function SamplePdfReader({
       </div>
 
       <div className="rounded-md border border-slate-200 bg-white p-4 shadow-sm">
+        <div className="mb-4">
+          <FriendLayerPicker
+            friendLayers={friendLayersForPage}
+            onHideFriendLayer={hideFriendLayer}
+            onSelectFriendLayer={setSelectedFriendId}
+            selectedFriendId={selectedFriendLayer?.friendId ?? null}
+          />
+        </div>
+
         <div className="flex min-h-[28rem] items-center justify-center overflow-auto rounded-sm bg-slate-100 p-4">
           {status === "error" ? (
             <div className="max-w-md text-center">
@@ -135,6 +160,13 @@ export function SamplePdfReader({
                     : "h-auto bg-white shadow"
                 }
               />
+              {status === "ready" && pageSize && selectedFriendLayer ? (
+                <ReadOnlyAnnotationLayer
+                  ariaLabel={`${selectedFriendLayer.friendName} annotation layer`}
+                  pageSize={pageSize}
+                  strokes={selectedFriendLayer.strokes}
+                />
+              ) : null}
               {status === "ready" && pageSize ? (
                 <AnnotationCanvasOverlay
                   onStrokeComplete={handleStrokeComplete}
@@ -159,6 +191,9 @@ export function SamplePdfReader({
               {" · "}
               {currentPageStrokes.length} pen{" "}
               {currentPageStrokes.length === 1 ? "stroke" : "strokes"}
+              {selectedFriendLayer
+                ? ` · ${selectedFriendLayer.friendName}'s layer visible`
+                : ""}
             </span>
           ) : null}
         </div>
